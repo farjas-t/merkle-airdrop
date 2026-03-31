@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import './styles.css';
 
-const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+const BACKEND = '/api';
 
 // ─── Toast System ─────────────────────────────────────────────────────────────
 let toastId = 0;

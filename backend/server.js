@@ -14,7 +14,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-const MERKLE_FILE = path.join(__dirname, 'merkle.json');
+const MERKLE_FILE = path.join(process.cwd(), 'backend', 'merkle.json');
 
 let merkleData = null;
 
@@ -213,5 +213,10 @@ app.get('/merkle.json', (req, res) => {
   res.sendFile(MERKLE_FILE);
 });
 
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`MerkleDropper backend listening on port ${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`MerkleDropper backend listening on port ${PORT}`));
+}
+
+module.exports = app;
