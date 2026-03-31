@@ -92,15 +92,9 @@ export default function MerkleDropperPage() {
   const [copied, setCopied] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
-  // Load existing root on mount
+  // Stateless: data is only available after upload
   useEffect(() => {
-    axios.get(`/api/merkle`)
-      .then(r => {
-        setMerkleInfo(r.data);
-        return axios.get(`/api/merkle/results`);
-      })
-      .then(r => setEntries(r.data.entries || []))
-      .catch(() => { }); // no tree yet - that's fine
+    // We no longer attempt to load a persistent root on mount to avoid EROFS issues
   }, []);
 
   // ── Download Template ───────────────────────────────────────────────────────
@@ -141,10 +135,8 @@ export default function MerkleDropperPage() {
     try {
       const r = await axios.post(`/api/upload`, fd);
       setMerkleInfo(r.data);
+      setEntries(r.data.entries || []); // Set entries directly from upload response
       toast.success(`Merkle tree generated for ${r.data.count} addresses`);
-      // Fetch full results
-      const res = await axios.get(`/api/merkle/results`);
-      setEntries(res.data.entries || []);
       setFile(null);
     } catch (e: any) {
       toast.error(e.response?.data?.error || 'Upload failed');
@@ -162,14 +154,33 @@ export default function MerkleDropperPage() {
     });
   }
 
-  // ── Download Results ────────────────────────────────────────────────────────
+  // ── Download Results (Client-Side) ──────────────────────────────────────────
   function downloadResults() {
-    if (!merkleInfo) return;
-    const a = document.createElement('a');
-    a.href = `/api/merkle/results/csv`;
-    a.download = 'merkledropper_results.csv';
-    a.click();
-    toast.success('Results CSV downloaded');
+    if (!merkleInfo || entries.length === 0) return;
+
+    const lines = ['merkle_root,address,amount,proof'];
+    for (const entry of entries) {
+      const proofStr = entry.proof.join('|');
+      const row = [
+        merkleInfo.root,
+        entry.address,
+        entry.amount,
+        `"${proofStr}"`,
+      ].join(',');
+      lines.push(row);
+    }
+
+    const csvContent = lines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'merkledropper_results.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Results CSV generated and downloaded');
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

@@ -39,12 +39,13 @@ export async function POST(request: NextRequest) {
     }
 
     const merkleResult = buildMerkleTree(records);
-    saveMerkleData(merkleResult);
+    // saveMerkleData(merkleResult); // Removed to fix EROFS read-only file system issue
 
     return NextResponse.json({
       root: merkleResult.root,
       count: merkleResult.count,
-      totalAllocated: merkleResult.totalAllocated
+      totalAllocated: merkleResult.totalAllocated,
+      entries: merkleResult.entries // Return full data for stateless frontend
     });
 
   } catch (err: any) {
