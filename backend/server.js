@@ -215,8 +215,8 @@ app.get('/merkle.json', (req, res) => {
 
 
 const PORT = process.env.PORT || 4000;
-if (require.main === module) {
-  app.listen(PORT, () => console.log(`MerkleDropper backend listening on port ${PORT}`));
-}
+// if (process.env.NODE_ENV !== 'production') {
+//   app.listen(3000, () => console.log('Local server running'));
+// }
 
 module.exports = app;
