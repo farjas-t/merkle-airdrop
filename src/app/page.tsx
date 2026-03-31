@@ -1,22 +1,35 @@
+'use client';
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import './styles.css';
-
-const BACKEND = '/api';
 
 // ─── Toast System ─────────────────────────────────────────────────────────────
+type ToastType = 'success' | 'error' | 'info';
+interface Toast {
+  id: number;
+  type: ToastType;
+  message: string;
+}
+
 let toastId = 0;
 function useToasts() {
-  const [toasts, setToasts] = useState([]);
-  const add = useCallback((type, message) => {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const add = useCallback((type: ToastType, message: string) => {
     const id = ++toastId;
     setToasts(prev => [...prev, { id, type, message }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
-  return { toasts, toast: { success: m => add('success', m), error: m => add('error', m), info: m => add('info', m) } };
+  return { 
+    toasts, 
+    toast: { 
+      success: (m: string) => add('success', m), 
+      error: (m: string) => add('error', m), 
+      info: (m: string) => add('info', m) 
+    } 
+  };
 }
 
-function ToastContainer({ toasts }) {
+function ToastContainer({ toasts }: { toasts: Toast[] }) {
   const icons = { success: '✓', error: '✕', info: 'ℹ' };
   return (
     <div className="toast-container">
@@ -31,7 +44,7 @@ function ToastContainer({ toasts }) {
 }
 
 // ─── Proof Row ────────────────────────────────────────────────────────────────
-function ProofRow({ entry }) {
+function ProofRow({ entry }: { entry: any }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <tr>
@@ -43,7 +56,7 @@ function ProofRow({ entry }) {
         </button>
         {expanded && (
           <ul className="proof-list">
-            {entry.proof.map((h, i) => <li key={i}>{h}</li>)}
+            {entry.proof.map((h: string, i: number) => <li key={i}>{h}</li>)}
           </ul>
         )}
       </td>
@@ -52,43 +65,39 @@ function ProofRow({ entry }) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatAmount(weiStr) {
+function formatAmount(weiStr: string) {
   try {
     const n = BigInt(weiStr);
-    const eth = Number(n) / 1e18;
+    const eth = Number(n) / 10**18;
     return eth.toLocaleString('en-US', { maximumFractionDigits: 4 });
   } catch {
     return weiStr;
   }
 }
 
-function formatAddress(addr) {
-  return addr.slice(0, 6) + '…' + addr.slice(-4);
-}
-
-function copyToClipboard(text, cb) {
+function copyToClipboard(text: string, cb?: () => void) {
   navigator.clipboard.writeText(text).then(() => cb && cb()).catch(() => { });
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
-export default function App() {
+export default function MerkleDropperPage() {
   const { toasts, toast } = useToasts();
 
   // State
-  const [merkleInfo, setMerkleInfo] = useState(null);   // { root, count, totalAllocated, timestamp }
-  const [entries, setEntries] = useState([]);     // full proof table
-  const [file, setFile] = useState(null);
+  const [merkleInfo, setMerkleInfo] = useState<any>(null);   // { root, count, totalAllocated, timestamp }
+  const [entries, setEntries] = useState<any[]>([]);     // full proof table
+  const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [copied, setCopied] = useState(false);
-  const dropRef = useRef();
+  const dropRef = useRef<HTMLDivElement>(null);
 
   // Load existing root on mount
   useEffect(() => {
-    axios.get(`${BACKEND}/root`)
+    axios.get(`/api/merkle`)
       .then(r => {
         setMerkleInfo(r.data);
-        return axios.get(`${BACKEND}/results`);
+        return axios.get(`/api/merkle/results`);
       })
       .then(r => setEntries(r.data.entries || []))
       .catch(() => { }); // no tree yet - that's fine
@@ -97,14 +106,14 @@ export default function App() {
   // ── Download Template ───────────────────────────────────────────────────────
   function downloadTemplate() {
     const a = document.createElement('a');
-    a.href = `${BACKEND}/template`;
+    a.href = `/api/template`;
     a.download = 'merkledropper_template.csv';
     a.click();
     toast.info('Template CSV downloaded');
   }
 
   // ── File Selection ──────────────────────────────────────────────────────────
-  function handleFileSelect(f) {
+  function handleFileSelect(f: File | null) {
     if (!f) return;
     if (!f.name.endsWith('.csv')) {
       toast.error('Please upload a .csv file');
@@ -113,14 +122,14 @@ export default function App() {
     setFile(f);
   }
 
-  function onDrop(e) {
+  function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     const f = e.dataTransfer.files[0];
     handleFileSelect(f);
   }
 
-  function onDragOver(e) { e.preventDefault(); setDragOver(true); }
+  function onDragOver(e: React.DragEvent) { e.preventDefault(); setDragOver(true); }
   function onDragLeave() { setDragOver(false); }
 
   // ── Upload & Generate ───────────────────────────────────────────────────────
@@ -130,14 +139,14 @@ export default function App() {
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const r = await axios.post(`${BACKEND}/upload`, fd);
+      const r = await axios.post(`/api/upload`, fd);
       setMerkleInfo(r.data);
       toast.success(`Merkle tree generated for ${r.data.count} addresses`);
       // Fetch full results
-      const res = await axios.get(`${BACKEND}/results`);
+      const res = await axios.get(`/api/merkle/results`);
       setEntries(res.data.entries || []);
       setFile(null);
-    } catch (e) {
+    } catch (e: any) {
       toast.error(e.response?.data?.error || 'Upload failed');
     } finally {
       setUploading(false);
@@ -157,7 +166,7 @@ export default function App() {
   function downloadResults() {
     if (!merkleInfo) return;
     const a = document.createElement('a');
-    a.href = `${BACKEND}/results/csv`;
+    a.href = `/api/merkle/results/csv`;
     a.download = 'merkledropper_results.csv';
     a.click();
     toast.success('Results CSV downloaded');
@@ -225,7 +234,7 @@ export default function App() {
                 id="file-input"
                 type="file"
                 accept=".csv"
-                onChange={e => handleFileSelect(e.target.files[0])}
+                onChange={e => handleFileSelect(e.target.files ? e.target.files[0] : null)}
               />
               <div className="drop-icon">📂</div>
               <div className="drop-title">Drag & drop your CSV here</div>
@@ -279,7 +288,7 @@ export default function App() {
                   </div>
                   <div className="stat">
                     <span className="stat-label">Total Allocation (wei)</span>
-                    <span className="stat-value">{merkleInfo.totalAllocated ? Number(BigInt(merkleInfo.totalAllocated) / BigInt('1000000000000000')).toLocaleString() + 'K' : '-'}</span>
+                    <span className="stat-value">{merkleInfo.totalAllocated ? Number(BigInt(merkleInfo.totalAllocated) / BigInt(1000000000000000)) / 1000 + 'M' : '-'}</span>
                   </div>
                   {merkleInfo.timestamp && (
                     <div className="stat">
