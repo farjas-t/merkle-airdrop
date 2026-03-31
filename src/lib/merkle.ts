@@ -16,10 +16,8 @@ export function normalizeRow(address: string, amount: string): NormalizedRecord 
     throw new Error(`Invalid amount: ${amtStr}`);
   }
 
-  // If it has decimals, parse as ether (18 dec); if already integer treat as raw wei
-  const amtBigInt = amtStr.includes('.')
-    ? ethers.parseEther(amtStr)
-    : BigInt(amtStr);
+  // Convert all token amounts to wei (18 decimals)
+  const amtBigInt = ethers.parseEther(amtStr);
 
   return { address: addr, amount: amtBigInt.toString() };
 }

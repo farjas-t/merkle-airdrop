@@ -68,8 +68,16 @@ function ProofRow({ entry }: { entry: any }) {
 function formatAmount(weiStr: string) {
   try {
     const n = BigInt(weiStr);
+    if (n === BigInt(0)) return '0';
+    
     const eth = Number(n) / 10**18;
-    return eth.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    
+    // For very small amounts, show more precision
+    if (eth > 0 && eth < 0.0001) {
+      return eth.toLocaleString('en-US', { maximumFractionDigits: 18 });
+    }
+    
+    return eth.toLocaleString('en-US', { maximumFractionDigits: 6 });
   } catch {
     return weiStr;
   }
@@ -298,8 +306,12 @@ export default function MerkleDropperPage() {
                     <span className="stat-value">{merkleInfo.count}</span>
                   </div>
                   <div className="stat">
-                    <span className="stat-label">Total Allocation (wei)</span>
-                    <span className="stat-value">{merkleInfo.totalAllocated ? Number(BigInt(merkleInfo.totalAllocated) / BigInt(1000000000000000)) / 1000 + 'M' : '-'}</span>
+                    <span className="stat-label">Total Tokens</span>
+                    <span className="stat-value">
+                      {merkleInfo.totalAllocated 
+                        ? formatAmount(merkleInfo.totalAllocated) 
+                        : '-'}
+                    </span>
                   </div>
                   {merkleInfo.timestamp && (
                     <div className="stat">
